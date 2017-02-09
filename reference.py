@@ -26,7 +26,8 @@ Created on Sat Dec 14 17:24:44 2013
 # Import modules
 import csv
 import numpy as np
-
+import random
+from random import shuffle
 
 
 def get_players(n_players):
@@ -63,14 +64,15 @@ def get_players(n_players):
             self.properties.append(prop_id)
             self.cash -= price
         
+		# Get the price of a property
+		def getPrice(self,prop_id):
+
+
         # Pay another player
-        def pay(self, payee, payment):
-            if self.cash > payment:
-                self.cash -= payment
-                players[payee].cash += payment
-            else:
-                players[payee].cash += self.cash
-                self.default(payee, payment)
+        def pay(self, payee, prop_id):
+			payment = payee.getPrice(prop_id)
+			self.cash -= payment
+			payee.cash += payment
         
         # Go to jail
         def go_to_jail(self):
@@ -79,22 +81,16 @@ def get_players(n_players):
         
         # Choose jail strategy
         def choose_jail_strtg(self, rolled_double):
-            if self.jail_cards > 0:
-                self.jail_strtg = 'card'
-                self.jail_turns = 0
-                self.jail_cards -= 1
-            elif self.cash >= 50:
-                self.jail_strtg = 'pay'
-                self.jail_turns = 0
-                self.cash -= 50
-            else:
-                self.jail_strtg = 'roll'
-                if rolled_double:
-                    self.jail_turns = 0
-                else:
-                    self.jail_turns -= 1
-                    if self.jail_turns == 0:
-                        self.cash -= 50
+			self.jail_turns -= 1
+			if self.jai_turns <= 0 or rolled_double:
+				self.jail_turns = 0
+			elif not long_jail
+            	if self.jail_cards > 0:
+					self.jail_cards -= 1
+					self.jail_turns = 0
+            	elif self.cash >= 50:
+					self.jail_turns = 0
+					self.cash -= 50
         
         # Default
         def default(self):
@@ -228,20 +224,31 @@ class switch(object):
             return False
 
 
+
 def main():
     
     # Declarations
     n_players = 5
-    board_file = '/Users/jmcontreras/GitHub/monopoly/board.csv'
+    board_file = './board.csv'
+	num_rounds = 1
+	long_jail = True
     
     # Get players and board (including properties)
     players = get_players(n_players)
     board = get_board(board_file)
+
+	# Decks of Cards
+	master_chest = [0,40,40,40,40,10,40,40,40,40,40,40,40,40,40,40]
+	chest = [i for i in master_chest] #copying the master
+	shuffle(chest)
+	master_chance = [0,24,11,'U','R',40,40,'B',10,40,40,5,39,40,40,40]
+	chance = [i for i in master_chance]
+	shuffle(chance)
     
     game_round = 1    
     
-    # Start game
-    while len(players) > 1:
+    # Start Game
+    while game_round <= 1:
         
         # Take turns
         for turn in range(n_players):
@@ -268,30 +275,61 @@ def main():
                     if players[turn].jail_turns > 0:
                         break
                 
-                # If player rolled less than 3 doubles
-                if n_double_roll < 3:
+                # If player rolled more than 3 doubles, send to jail
+                if n_double_roll >= 3:
                     
-                    # Move player 
-                    players[turn].move(roll, verbose=False)
+                    players[turn].go_to_jail()
+                    break
+
+                else:
+					# Move player
+					players[turn].move(roll, verbose=False)
+
+					# Chance
+					if players[turn].position in [7,22,33]:
+						chance_card = chance.pop(0)
+						if len(chance) == 0:
+							chance = [i for i in master_chance]
+							shuffle(chance)
+						if chance_card != 40:
+
+							if isinstance(chance_card,int):
+								players[turn].position = chance_card
+							elif chance_card == 'U':
+								while players[turn].position not in [12,28]:
+									players[turn].position = (players[turn].position + 1)%40
+							elif chance_card == 'R':
+								while players[turn].position not in [5,15,25,35]:
+									players[turn].position = (players[turn].position + 1)%40
+							elif chance_card == 'B':
+								players[turn].position = players[turn].position - 3
+
+					# Community Chest
+					elif players[turn].position in [2,17]:
+						chest_card = chest.pop(0)
+						if len(chest) == 0:
+							chest = [i for i in master_chest]
+							shuffle(chest)
+						if chest_card != 40:
+							players[turn].position = chest_card
+
+					# Go to Jail
+					elif player[turn].position == 30:
+						players[turn].go_to_jail()
+						break
+
+					# On another players prop
+					for player in players:
+						if players[turn].position in player.properties:
+							players[turn].pay(player,players[turn].position)
 
                     # If no double rolled, end turn
                     if not rolled_double:
                         break
-                
-                # Otherwise, send player to jail and end turn
-                else:
-                    players[turn].go_to_jail()
-                    break
-                
-                # Now here is where we start interacting with the board
-                type(board[4]).__name__
-                http://code.activestate.com/recipes/410692/
+
         
         game_round += 1      
-        
-        if game_round == 20:
-            break
-        
+
         # sum values across list
         # sum(players[i].cash for i in range(0,4))
 

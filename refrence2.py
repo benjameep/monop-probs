@@ -19,7 +19,7 @@ def monop(finish_order=6,games_order=3):
     while games_finished < games:
          
         master_chest = [0,40,40,40,40,10,40,40,40,40,40,40,40,40,40,40]
-        chest = [i for i in master_chest]
+        chest = [i for i in master_chest] #copying the master
         shuffle(chest)
          
         master_chance = [0,24,11,'U','R',40,40,'B',10,40,40,5,39,40,40,40]
