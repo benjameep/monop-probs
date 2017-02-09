@@ -244,7 +244,7 @@ class Property{
         }
     }
 	getRent(dice){
-		if(this.id == '16' or this.id == '26')
+		if(this.id == '16' || this.id == '26')
 			return data[this.id].Rent[this.dev]*dice
 		else
 			return data[this.id].Rent[this.dev]
@@ -257,11 +257,12 @@ class Player{
 		this.position = 0
 		this.cash = 1500
 		this.jailCards = 0
+        this.jailTurns = 0
         this.color = color || "#999"
         this.number = number
         this.initPosition(numPlayers)
         this.props = {}
-        this.balance = 0;
+        this.balance = 29;
         this.value = 0;
         this.monops = [{amount:0},{amount:0},{amount:0},{amount:0},{amount:0},{amount:0},{amount:0},{amount:0},{amount:0},{amount:0}]
     }
@@ -351,6 +352,20 @@ class Player{
         }
         return this.value
     }
+    move(amount){
+        // finally move forward
+        this.position += amount
+
+        // if pass go
+        if(this.position >= 40){
+            this.position -= 40
+            this.cash += 200
+        }
+    }
+    goToJail(){
+        this.position = 10
+        this.jailTurns = 3
+    }
 }
 
 class Game{
@@ -398,13 +413,139 @@ class Game{
         for(let i = 0; i < this.players.length; i++)
             total += this.players[i].updateValue()
         for(let i = 0; i < this.players.length; i++)
-            this.players[i].balance = this.players[i].value*this.players.length - total
+            this.players[i].balance = this.players[i].value*this.players.length - total + 29
         DRAW()
     }
 }
 
 class Simulator{
+    constructor(numRounds){
+        this.numRounds = numRounds
+        this.shortJail = false
+        this.verbose = false
+        this.ptoid = {"1":"5","3":"4","5":"3","6":"2","8":"1","9":"0","11":"17","12":"16","13":"15","14":"14","15":"13","16":"12","18":"11","19":"10","21":"20","23":"21","24":"22","25":"23","26":"24","27":"25","28":"26","29":"27","31":"30","32":"31","34":"32","35":"33","37":"34","39":"35"}
+        this.numRoundsInGame = 100
+        this.playGame()
+    }
+    rollDice(){
+        var dice1 = Math.ceil(Math.random()*6)
+        var dice2 = Math.ceil(Math.random()*6)
+        return {roll:dice1+dice2, isDoubles:dice1==dice2}
+    }
+    log(string){
+        if(this.verbose){
+            console.log(string)
+        }
+    }
+    playGame(){
+        // setup
+        var i = this.numRoundsInGame
+        game.players.forEach( player => {
+            player.position = 0
+            player.cash = 1500
+            player.jailCards = 0
+            player.jailTurns = 0
+        })
 
+        // loop through
+        while(i--)
+            this.playRound()
+
+        // display results
+        console.log(game.players.reduce( (results,player) => {
+            return (results += (" $"+player.cash))
+        },""))
+    }
+    playRound(){
+
+        game.players.forEach( (player,i,players) => {
+            var dice
+            var numDoubles = 0;
+
+            do{
+                dice = this.rollDice()
+                if(dice.isDoubles){
+                    numDoubles++
+                    this.log("doubles!")
+                }
+
+                // if our guy is in jail
+                if(player.jailTurns > 0){
+                    player.jailTurns--
+                    if (player.jailTurns <= 0 || dice.isDoubles) // if we are automatically free
+                        player.jailTurns = 0
+                    else if(this.shortJail){ // if we want to bail out
+                        if(player.jailCards > 0){ // check if we have a get out free card first
+                            player.jailCards--
+                            player.jailTurns = 0
+                        } else if(player.cash >= 50){ // you wouldn't want to go bankrupt from bailing ;)
+                            player.cash -= 50
+                            player.jailTurns = 0
+                        }
+                    }
+                    if(player.jailTurns > 0){ // if we decided to stay in jail
+                        break
+                    }
+                }
+
+                // send to jail for speeding
+                if(numDoubles >= 3){
+                    player.position = 10
+                    player.jailTurns = 3
+                    break // do not pass go ;)
+                }
+
+                // finally move
+                player.move(dice.roll)
+
+                // now it depends on what you landed on
+                switch(player.position){
+                // Community Chest
+                    case 2:
+                    case 17:
+                    case 33:
+                        break;
+                // Chance
+                    case 7:
+                    case 22:
+                    case 36:
+                        break;
+                // Tax
+                    case 4:
+                    case 38:
+                        this.log("p"+player.number+" landed on tax")
+                        player.cash -= player.position==4?200:100
+                        break;
+                // Go to Jail
+                    case 30:
+                        player.position = 10
+                        player.jailTurns = 3
+                        break;
+                // Idle
+                    case 0:
+                    case 10:
+                    case 20:
+                        break;
+                // Landed on a prop
+                    default:
+                        var id = this.ptoid[player.position]
+                        this.log(player.number+" landed on "+data[id].Name)
+                        // if you land on your own prop, pay yourself
+                        players.forEach(opponent => {
+                            if(opponent.props[id]){
+                                var rent = opponent.props[id].getRent(dice.roll)
+                                player.cash -= +rent
+                                opponent.cash += +rent
+                                this.log(rent+"$ from p"+player.number+" to p"+opponent.number)
+                            }
+                        })
+                        break;
+                }
+
+            } while(dice.isDoubles)
+
+        })
+    }
 }
 
 function whichProp(mX,mY){
