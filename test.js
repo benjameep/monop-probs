@@ -17,23 +17,43 @@
 //    return this
 //}
 
-var chanceCards = ["$50","$200","$-15","$150","$100",0,24,
-                   11,5,39,"Railx2","Railx2",
-                   "Utilx10","JailCard","-3","GoJail","Repairs","$-50x"] // $25 $100
-var communCards = [0,"$200","$-50","$50","JailCard","GoJail","$50x","$100",
-                  "$20","$10x","$100","$-100","$-150","$25","Repairs","$10","$100"] // $40 $115
+//var chanceCards = ["$50","$200","$-15","$150","$100",0,24,
+//                   11,5,39,"Railx2","Railx2",
+//                   "Utilx10","JailCard","-3","GoJail","hRepairs","$-50x"]
+//var communCards = [0,"$200","$-50","$50","JailCard","GoJail","$50x","$100",
+//                  "$20","$10x","$100","$-100","$-150","$25","sRepairs","$10","$100"]
+//
+//function followCard(card){
+//    if(card[0] == '$'){
+//        amount = card.slice(1)
+//        if(isNaN(amount))
+//            amount = amount.slice(0,-1)
+//        else
+//            amount = amount*1
+//        console.log(amount)
+//    } else if (Number.isInteger(card)){
+//        console.log("Go to "+card)
+//    } else {
+//		switch(card){
+//			case "Railx2":
+//				break;
+//			case "Utilx10":
+//				break;
+//			case "JailCard":
+//				break;
+//			case "GoJail":
+//				break;
+//			case "-3":
+//				break;
+//			case "hRepairs": // $25 $100
+//				break;
+//			case "sRepairs": // $40 $115
+//				break;
+//		}
+//	}
+//}
+//
+//chanceCards.forEach(followCard)
 
-function followCard(card){
-    if(card[0] == '$'){
-        amount = card.slice(1)
-        if(isNaN(amount))
-            amount = amount.slice(0,-1)
-        else
-            amount = amount*1
-        console.log(amount)
-    } else if (Number.isInteger(card)){
-        console.log("Go to "+card)
-    }
-}
 
-chanceCards.forEach(followCard)
+console.log("Single" <= 4)

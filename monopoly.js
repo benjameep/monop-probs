@@ -366,6 +366,16 @@ class Player{
         this.position = 10
         this.jailTurns = 3
     }
+	getTotalDev(){
+		var totalDev = {houses:0,hotels:0}
+		for(prop in this.props){
+			if(prop.dev <= 4)
+				totalDev.houses += +prop.dev
+			else if (prop.dev == 5)
+				totalDev.hotels++
+		}
+		return totalDev
+	}
 }
 
 class Game{
@@ -426,6 +436,8 @@ class Simulator{
         this.ptoid = {"1":"5","3":"4","5":"3","6":"2","8":"1","9":"0","11":"17","12":"16","13":"15","14":"14","15":"13","16":"12","18":"11","19":"10","21":"20","23":"21","24":"22","25":"23","26":"24","27":"25","28":"26","29":"27","31":"30","32":"31","34":"32","35":"33","37":"34","39":"35"}
         this.numRoundsInGame = 100
         this.playGame()
+		this.chanceCards = ["$50","$200","$-15","$150","$100",0,24,11,5,39,"Railx2","Railx2","Utilx10","JailCard","-3","GoJail","hRepairs","$-50x"]
+		this.communCards = [0,"$200","$-50","$50","JailCard","GoJail","$50x","$100","$20","$10x","$100","$-100","$-150","$25","sRepairs","$10","$100"]
     }
     rollDice(){
         var dice1 = Math.ceil(Math.random()*6)
@@ -437,6 +449,66 @@ class Simulator{
             console.log(string)
         }
     }
+	followCard(player,card){
+		if(card[0] == '$'){
+			amount = card.slice(1)
+			if(isNaN(amount)){
+				amount = amount.slice(0,-1)
+				game.players.forEach(opponent => {
+					opponent.cash += amount
+					player.cash -= amount
+				})
+			} else {
+				amount = amount*1
+				player.cash += amount
+			}
+		} else if (Number.isInteger(card)){
+			while(player.position != card)
+				player.move(1)
+			this.rentProperty(player)
+		} else {
+			switch(card){
+				case "Railx2":
+					player.position = Math.floor(player.position/10)*10+5
+					this.rentProperty(player) // pay double rent hack ;)
+					this.rentProperty(player)
+					break;
+				case "Utilx10":
+					// I wish this could be simpler, put monopoly wanted to make it complicated
+					while(player.position != 12 && player.position != 28)
+						player.move(1)
+					var id = this.ptoid[player.position]
+					players.forEach(opponent => {
+						if(opponent.props[id]){
+							var rent = this.rollDice().roll * 10
+							player.cash -= +rent
+							opponent.cash += +rent
+						}
+					})
+					break;
+				case "JailCard":
+					player.jailCards++
+					break;
+				case "GoJail":
+					player.goToJail()
+					break;
+				case "-3":
+					player.move(-3)
+					break;
+				case "hRepairs": // $25 $100
+					var dev = player.getTotalDev()
+					console.log(dev)
+					player.cash -= (dev.houses * 25) + (dev.hotels * 100)
+					break;
+				case "sRepairs": // $40 $115
+					var dev = player.getTotalDev()
+					player.cash -= (dev.houses * 40) + (dev.hotels * 115)
+					break;
+				default:
+					console.log("Something went wrong")
+			}
+		}
+	}
     playGame(){
         // setup
         var i = this.numRoundsInGame
@@ -456,6 +528,19 @@ class Simulator{
             return (results += (" $"+player.cash))
         },""))
     }
+	rentProperty(player,roll=7){
+		var id = this.ptoid[player.position]
+		this.log(player.number+" landed on "+data[id].Name)
+		// if you land on your own prop, pay yourself
+		game.players.forEach(opponent => {
+			if(opponent.props[id]){
+				var rent = opponent.props[id].getRent(roll)
+				player.cash -= +rent
+				opponent.cash += +rent
+				this.log(rent+"$ from p"+player.number+" to p"+opponent.number)
+			}
+		})
+	}
     playRound(){
 
         game.players.forEach( (player,i,players) => {
@@ -504,6 +589,7 @@ class Simulator{
                     case 2:
                     case 17:
                     case 33:
+
                         break;
                 // Chance
                     case 7:
@@ -528,17 +614,7 @@ class Simulator{
                         break;
                 // Landed on a prop
                     default:
-                        var id = this.ptoid[player.position]
-                        this.log(player.number+" landed on "+data[id].Name)
-                        // if you land on your own prop, pay yourself
-                        players.forEach(opponent => {
-                            if(opponent.props[id]){
-                                var rent = opponent.props[id].getRent(dice.roll)
-                                player.cash -= +rent
-                                opponent.cash += +rent
-                                this.log(rent+"$ from p"+player.number+" to p"+opponent.number)
-                            }
-                        })
+						this.rentProperty(player,dice.roll)
                         break;
                 }
 
