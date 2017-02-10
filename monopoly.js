@@ -368,11 +368,18 @@ class Player{
     }
 	getTotalDev(){
 		var totalDev = {houses:0,hotels:0}
-		for(prop in this.props){
-			if(prop.dev <= 4)
-				totalDev.houses += +prop.dev
-			else if (prop.dev == 5)
-				totalDev.hotels++
+		for(var prop in this.props){
+			switch(this.props[prop].dev){
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					totalDev.houses += this.props[prop].dev
+					break;
+				case 5:
+					totalDev.hotels++
+					break;
+			}
 		}
 		return totalDev
 	}
@@ -434,103 +441,26 @@ class Simulator{
         this.shortJail = false
         this.verbose = false
         this.ptoid = {"1":"5","3":"4","5":"3","6":"2","8":"1","9":"0","11":"17","12":"16","13":"15","14":"14","15":"13","16":"12","18":"11","19":"10","21":"20","23":"21","24":"22","25":"23","26":"24","27":"25","28":"26","29":"27","31":"30","32":"31","34":"32","35":"33","37":"34","39":"35"}
-        this.numRoundsInGame = 100
-        this.playGame()
-		this.chanceCards = ["$50","$200","$-15","$150","$100",0,24,11,5,39,"Railx2","Railx2","Utilx10","JailCard","-3","GoJail","hRepairs","$-50x"]
+        this.numRoundsInGame = 30
+		this.chanceCards = ["$50","$-15","$150","$100",0,24,11,5,39,"Railx2","Railx2","Utilx10","JailCard","-3","GoJail","hRepairs","$-50x"]
 		this.communCards = [0,"$200","$-50","$50","JailCard","GoJail","$50x","$100","$20","$10x","$100","$-100","$-150","$25","sRepairs","$10","$100"]
+		this.shuffleChance = this.chanceCards.slice(0).shuffle()
+		this.shuffleCommun = this.communCards.slice(0).shuffle()
+        this.playGame()
+//		this.playRound()
+    }
+    log(){
+        if(this.verbose){
+            console.log(...arguments)
+        }
     }
     rollDice(){
         var dice1 = Math.ceil(Math.random()*6)
         var dice2 = Math.ceil(Math.random()*6)
         return {roll:dice1+dice2, isDoubles:dice1==dice2}
     }
-    log(string){
-        if(this.verbose){
-            console.log(string)
-        }
-    }
-	followCard(player,card){
-		if(card[0] == '$'){
-			amount = card.slice(1)
-			if(isNaN(amount)){
-				amount = amount.slice(0,-1)
-				game.players.forEach(opponent => {
-					opponent.cash += amount
-					player.cash -= amount
-				})
-			} else {
-				amount = amount*1
-				player.cash += amount
-			}
-		} else if (Number.isInteger(card)){
-			while(player.position != card)
-				player.move(1)
-			this.rentProperty(player)
-		} else {
-			switch(card){
-				case "Railx2":
-					player.position = Math.floor(player.position/10)*10+5
-					this.rentProperty(player) // pay double rent hack ;)
-					this.rentProperty(player)
-					break;
-				case "Utilx10":
-					// I wish this could be simpler, put monopoly wanted to make it complicated
-					while(player.position != 12 && player.position != 28)
-						player.move(1)
-					var id = this.ptoid[player.position]
-					players.forEach(opponent => {
-						if(opponent.props[id]){
-							var rent = this.rollDice().roll * 10
-							player.cash -= +rent
-							opponent.cash += +rent
-						}
-					})
-					break;
-				case "JailCard":
-					player.jailCards++
-					break;
-				case "GoJail":
-					player.goToJail()
-					break;
-				case "-3":
-					player.move(-3)
-					break;
-				case "hRepairs": // $25 $100
-					var dev = player.getTotalDev()
-					console.log(dev)
-					player.cash -= (dev.houses * 25) + (dev.hotels * 100)
-					break;
-				case "sRepairs": // $40 $115
-					var dev = player.getTotalDev()
-					player.cash -= (dev.houses * 40) + (dev.hotels * 115)
-					break;
-				default:
-					console.log("Something went wrong")
-			}
-		}
-	}
-    playGame(){
-        // setup
-        var i = this.numRoundsInGame
-        game.players.forEach( player => {
-            player.position = 0
-            player.cash = 1500
-            player.jailCards = 0
-            player.jailTurns = 0
-        })
-
-        // loop through
-        while(i--)
-            this.playRound()
-
-        // display results
-        console.log(game.players.reduce( (results,player) => {
-            return (results += (" $"+player.cash))
-        },""))
-    }
 	rentProperty(player,roll=7){
 		var id = this.ptoid[player.position]
-		this.log(player.number+" landed on "+data[id].Name)
 		// if you land on your own prop, pay yourself
 		game.players.forEach(opponent => {
 			if(opponent.props[id]){
@@ -540,6 +470,153 @@ class Simulator{
 				this.log(rent+"$ from p"+player.number+" to p"+opponent.number)
 			}
 		})
+	}
+	followCard(player,card){
+		if(card[0] == '$'){
+			var amount = card.slice(1)
+			if(isNaN(amount)){
+				amount = amount.slice(0,-1)
+				game.players.forEach(opponent => {
+					opponent.cash -= +amount
+					player.cash += +amount
+				})
+				this.log("p"+(1+player.number)+" gets $"+amount+" from each player")
+			} else {
+				player.cash += +amount
+				this.log("p"+(1+player.number)+" gets $"+amount)
+			}
+		} else if (Number.isInteger(card)){
+			while(player.position != card)
+				player.move(1)
+			this.rentProperty(player)
+			var id = this.ptoid[player.position]
+			this.log("p"+(1+player.number)+" moved to "+(id?data[id].Name:player.position))
+		} else {
+
+			switch(card){
+				case "Railx2":
+					player.position = Math.floor(player.position/10)*10+5
+					this.rentProperty(player) // pay double rent hack ;)
+					this.rentProperty(player)
+					this.log("p"+(1+player.number)+" moved to "+data[this.ptoid[player.position]].Name)
+					break;
+				case "Utilx10":
+					// I wish this could be simpler, put monopoly wanted to make it complicated
+					while(player.position != 12 && player.position != 28)
+						player.move(1)
+					this.log("p"+(1+player.number)+" moved to "+data[this.ptoid[player.position]].Name)
+					var id = this.ptoid[player.position]
+					game.players.forEach(opponent => {
+						if(opponent.props[id]){
+							var rent = this.rollDice().roll * 10
+							player.cash -= +rent
+							opponent.cash += +rent
+						}
+					})
+					break;
+				case "JailCard":
+					this.log("p"+(1+player.number)+" got a jail card")
+					player.jailCards++
+					break;
+				case "GoJail":
+					this.log("p"+(1+player.number)+" got sent to jail")
+					player.goToJail()
+					break;
+				case "-3":
+					this.log("p"+(1+player.number)+" moved back three spaces")
+					player.move(-3)
+					this.evaluationPosition(player)
+					break;
+				case "hRepairs": // $25 $100
+					var dev = player.getTotalDev()
+					this.log("p"+(1+player.number)+" has to pay repairs ",dev)
+					player.cash -= (dev.houses * 25) + (dev.hotels * 100)
+					break;
+				case "sRepairs": // $40 $115
+					var dev = player.getTotalDev()
+					this.log("p"+(1+player.number)+" has to pay repairs ",dev)
+					player.cash -= (dev.houses * 40) + (dev.hotels * 115)
+					break;
+				default:
+					console.log("Something went wrong")
+			}
+		}
+	}
+    playGame(){
+			// setup
+			var i = this.numRoundsInGame
+			game.players.forEach( player => {
+				player.position = 0
+				player.cash = 1500
+				player.jailCards = 0
+				player.jailTurns = 0
+			})
+
+			// loop through
+			while(i--)
+				this.playRound()
+
+			// display results
+			console.log(game.players.reduce( (results,player) => {
+				return (results += "\t"+player.cash)
+			},""))
+    }
+	rentProperty(player,roll=7){
+		var id = this.ptoid[player.position]
+		// if you land on your own prop, pay yourself
+		game.players.forEach(opponent => {
+			if(opponent.props[id]){
+				var rent = opponent.props[id].getRent(roll)
+				player.cash -= +rent
+				opponent.cash += +rent
+				this.log(rent+"$ from p"+(1+player.number)+" to p"+(1+opponent.number))
+			}
+		})
+	}
+	evaluationPosition(player,roll){
+		switch(player.position){
+		// Community Chest
+			case 2:
+			case 17:
+			case 33:
+				this.log("p"+(1+player.number)+" landed on Community Chest "+player.position)
+				this.followCard(player,this.shuffleCommun.pop())
+				if(this.shuffleCommun.length == 0)
+					this.shuffleCommun = this.communCards.slice(0).shuffle()
+				break;
+		// Chance
+			case 7:
+			case 22:
+			case 36:
+				this.log("p"+(1+player.number)+" landed on Chance "+player.position)
+				this.followCard(player,this.shuffleChance.pop())
+				if(this.shuffleChance.length == 0)
+					this.shuffleChance = this.chanceCards.slice(0).shuffle()
+				break;
+		// Tax
+			case 4:
+			case 38:
+				this.log("p"+(1+player.number)+" landed on tax")
+				player.cash -= player.position==4?200:100
+				break;
+		// Go to Jail
+			case 30:
+				this.log("p"+(1+player.number)+" landed on Go to Jail")
+				player.position = 10
+				player.jailTurns = 3
+				break;
+		// Idle
+			case 0:
+			case 10:
+			case 20:
+				this.log("p"+(1+player.number)+" landed on Idle "+player.position/10)
+				break;
+		// Landed on a prop
+			default:
+				this.log("p"+(1+player.number)+" landed on "+data[this.ptoid[player.position]].Name)
+				this.rentProperty(player,roll)
+				break;
+		}
 	}
     playRound(){
 
@@ -551,7 +628,7 @@ class Simulator{
                 dice = this.rollDice()
                 if(dice.isDoubles){
                     numDoubles++
-                    this.log("doubles!")
+					this.log("p"+(1+player.number)+" got doubles")
                 }
 
                 // if our guy is in jail
@@ -575,6 +652,7 @@ class Simulator{
 
                 // send to jail for speeding
                 if(numDoubles >= 3){
+					this.log("p"+(1+player.number)+" was speeding")
                     player.position = 10
                     player.jailTurns = 3
                     break // do not pass go ;)
@@ -584,43 +662,17 @@ class Simulator{
                 player.move(dice.roll)
 
                 // now it depends on what you landed on
-                switch(player.position){
-                // Community Chest
-                    case 2:
-                    case 17:
-                    case 33:
-
-                        break;
-                // Chance
-                    case 7:
-                    case 22:
-                    case 36:
-                        break;
-                // Tax
-                    case 4:
-                    case 38:
-                        this.log("p"+player.number+" landed on tax")
-                        player.cash -= player.position==4?200:100
-                        break;
-                // Go to Jail
-                    case 30:
-                        player.position = 10
-                        player.jailTurns = 3
-                        break;
-                // Idle
-                    case 0:
-                    case 10:
-                    case 20:
-                        break;
-                // Landed on a prop
-                    default:
-						this.rentProperty(player,dice.roll)
-                        break;
-                }
+				this.evaluationPosition(player,dice.roll)
 
             } while(dice.isDoubles)
 
         })
+
+		// print out everyone's cash, this is illegle in an actual game ;)
+        this.log(game.players.reduce( (results,player) => {
+            return (results += (" $"+player.cash))
+        },""))
+		this.log("-----------------")
     }
 }
 
@@ -647,6 +699,14 @@ function whichProp(mX,mY){
 	    (board.props[answer.prop].dev == 5 && answer.button == 2)))
 	    answer.button = 0
 	return answer
+}
+
+Array.prototype.shuffle = function(){
+    for (let i = this.length; i; i--) {
+        let j = Math.floor(Math.random() * i);
+        [this[i - 1], this[j]] = [this[j], this[i - 1]];
+    }
+    return this
 }
 
 /* MOUSE HANDLERS */
