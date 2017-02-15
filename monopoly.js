@@ -254,6 +254,7 @@ class Property{
 class Player{
 
     constructor(number,numPlayers,color){
+        this.chanceOfWinning = 100/(numPlayers*100)
 		this.position = 0
 		this.cash = 1500
 		this.jailCards = 0
@@ -290,7 +291,8 @@ class Player{
         ctx.textAlign = "center"
         ctx.font = board.gridSize*.4 + "px Arial"
         ctx.textBaseline = "middle"
-        ctx.fillText(this.balance.toFixed(1),this.x+this.width/2,this.y+this.height*.4)
+        ctx.fillText(this.balance.toFixed(1),this.x+this.width/2,this.y+this.height*.2)
+        ctx.fillText((this.chanceOfWinning*100).toFixed(0)+"%",this.x+this.width/2,this.y+this.height*.5)
         this.drawProps()
     }
     drawProps(){
@@ -431,6 +433,7 @@ class Game{
             total += this.players[i].updateValue()
         for(let i = 0; i < this.players.length; i++)
             this.players[i].balance = this.players[i].value*this.players.length - total + 29
+        new Simulator()
         DRAW()
     }
 }
@@ -442,12 +445,22 @@ class Simulator{
         this.verbose = false
         this.ptoid = {"1":"5","3":"4","5":"3","6":"2","8":"1","9":"0","11":"17","12":"16","13":"15","14":"14","15":"13","16":"12","18":"11","19":"10","21":"20","23":"21","24":"22","25":"23","26":"24","27":"25","28":"26","29":"27","31":"30","32":"31","34":"32","35":"33","37":"34","39":"35"}
         this.numRoundsInGame = 30
+        this.numberOfGames = 500
 		this.chanceCards = ["$50","$-15","$150","$100",0,24,11,5,39,"Railx2","Railx2","Utilx10","JailCard","-3","GoJail","hRepairs","$-50x"]
 		this.communCards = [0,"$200","$-50","$50","JailCard","GoJail","$50x","$100","$20","$10x","$100","$-100","$-150","$25","sRepairs","$10","$100"]
 		this.shuffleChance = this.chanceCards.slice(0).shuffle()
 		this.shuffleCommun = this.communCards.slice(0).shuffle()
-        this.playGame()
-//		this.playRound()
+        var wins = game.players.reduce( (obj,player) => {
+            obj[player.number] = 0
+            return obj
+        },{})
+        for(var i = 0; i < this.numberOfGames; i++){
+//            console.log(this.playGame())
+            wins[this.playGame()]++
+        }
+        game.players.forEach( player => {
+            player.chanceOfWinning = wins[player.number]/this.numberOfGames
+        })
     }
     log(){
         if(this.verbose){
@@ -557,9 +570,16 @@ class Simulator{
 				this.playRound()
 
 			// display results
-			console.log(game.players.reduce( (results,player) => {
-				return (results += "\t"+player.cash)
-			},""))
+//			return game.players.reduce( (obj,player) => {
+//				obj[player.number]
+//                return ()
+//			},{})
+//            game.players.forEach( player => {
+//                console.log("\tPlayer"+(player.number+1)+"\t"+player.cash)
+//            })
+            return game.players.reduce( (biggest,player) => {
+                return (biggest.cash > player.cash)?biggest:player
+            },game.players[0]).number
     }
 	rentProperty(player,roll=7){
 		var id = this.ptoid[player.position]
